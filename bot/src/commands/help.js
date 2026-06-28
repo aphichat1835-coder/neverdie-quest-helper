@@ -12,23 +12,28 @@ export async function execute(interaction) {
       {
         name: '🤖 Quest Runner (อัตโนมัติ)',
         value: [
-          '`/run` — เปิด popup กรอก token แล้วทำ quest อัตโนมัติทุกอัน',
-          '`/stop` — หยุด runner ที่กำลังทำงานอยู่',
+          '`/run` — กรอก token แล้วทำ quest อัตโนมัติทุกอัน',
+          '`/stop` — หยุด Runner ที่กำลังทำงาน',
         ].join('\n'),
       },
       {
-        name: '📝 Quest Tracker (จัดการเอง)',
+        name: '🎛️ แผงควบคุม',
+        value: '`/panel` — เปิดแผงควบคุมพร้อมปุ่ม: เพิ่ม, แก้ไข, ลบ, Done, สถิติ, Runner',
+      },
+      {
+        name: '📝 Quest Tracker',
         value: [
           '`/quest-add name: ... deadline: ... note: ...` — เพิ่มเควส',
-          '`/quest-list` — ดูรายการเควสทั้งหมด',
-          '`/quest-done id: ...` — มาร์คว่าเสร็จแล้ว',
+          '`/quest-list` — ดูรายการทั้งหมด',
+          '`/quest-done id: ...` — มาร์คว่าเสร็จ',
           '`/quest-remove id: ...` — ลบเควส',
-          '`/quest-status` — ดูสรุปสถิติ',
+          '`/quest-status` — สรุปสถิติ',
         ].join('\n'),
       },
       {
-        name: '🔧 ทั่วไป',
+        name: '🔧 ระบบ',
         value: [
+          '`/api-status` — เช็กสถานะ API Server',
           '`/ping` — เช็กว่าบอทออนไลน์',
           '`/help` — แสดงหน้านี้',
         ].join('\n'),

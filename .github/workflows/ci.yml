@@ -57,11 +57,22 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Check syntax
+      - name: Syntax check — entry points
         run: |
-          for f in src/commands/*.js src/*.js; do
+          node --check src/index.js && echo "✅ src/index.js"
+          node --check src/register-commands.js && echo "✅ src/register-commands.js"
+
+      - name: Syntax check — commands
+        run: |
+          for f in src/commands/*.js; do
+            node --check "$f" && echo "✅ $f"
+          done
+
+      - name: Syntax check — modules
+        run: |
+          for f in src/config.js src/storage.js src/permissions.js src/worker.js; do
             node --check "$f" && echo "✅ $f"
           done
 
@@ -81,10 +92,19 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Check syntax
+      - name: Syntax check — server entry
+        run: node --check src/index.js && echo "✅ src/index.js"
+
+      - name: Syntax check — routes
         run: |
-          for f in src/routes/*.js src/*.js; do
+          for f in src/routes/*.js; do
+            node --check "$f" && echo "✅ $f"
+          done
+
+      - name: Syntax check — modules
+        run: |
+          for f in src/db.js src/discord-runner.js; do
             node --check "$f" && echo "✅ $f"
           done
