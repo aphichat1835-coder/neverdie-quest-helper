@@ -1,0 +1,255 @@
+import { config as dotenv } from 'dotenv';
+dotenv();
+
+const DISCORD_API = 'https://discord.com/api/v9';
+const CLIENT_VERSION = '1.0.9243';
+const CHROME_VERSION = '138.0.7204.251';
+const ELECTRON_VERSION = '37.6.0';
+const CLIENT_BUILD_NUMBER = 569817;
+const NATIVE_BUILD_NUMBER = 84934;
+
+const USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/${CLIENT_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`;
+
+function buildSuperProperties() {
+  const obj = {
+    os: 'Windows',
+    browser: 'Discord Client',
+    release_channel: 'stable',
+    client_version: CLIENT_VERSION,
+    os_version: '10.0.19045',
+    os_arch: 'x64',
+    app_arch: 'x64',
+    system_locale: 'en-US',
+    browser_user_agent: USER_AGENT,
+    browser_version: CHROME_VERSION,
+    client_build_number: CLIENT_BUILD_NUMBER,
+    native_build_number: NATIVE_BUILD_NUMBER,
+    client_event_source: null,
+  };
+  return Buffer.from(JSON.stringify(obj)).toString('base64');
+}
+
+function userHeaders(token) {
+  return {
+    Authorization: token,
+    'Content-Type': 'application/json',
+    'User-Agent': USER_AGENT,
+    'X-Super-Properties': buildSuperProperties(),
+    'X-Debug-Options': 'bugReporterEnabled',
+    'Accept': '*/*',
+    'Referer': 'https://discord.com/quest-home',
+  };
+}
+
+async function discordFetch(token, path, options = {}) {
+  const res = await fetch(`${DISCORD_API}${path}`, {
+    headers: userHeaders(token),
+    ...options,
+  });
+  if (res.status === 204) return null;
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw new Error(`Discord API ${res.status}: ${JSON.stringify(data)}`);
+  return data;
+}
+
+export async function fetchMe(token) {
+  return discordFetch(token, '/users/@me');
+}
+
+export async function fetchQuests(token) {
+  const raw = await discordFetch(token, '/users/@me/quests');
+  if (!Array.isArray(raw)) return [];
+  return raw.map(normalizeQuest);
+}
+
+async function enrollQuest(token, questId) {
+  return discordFetch(token, `/quests/${questId}/enroll`, { method: 'POST', body: '{}' });
+}
+
+async function sendVideoProgress(token, questId, timestamp) {
+  const jitter = Math.random() * 0.5;
+  const ts = Math.round(timestamp + jitter);
+  const res = await discordFetch(token, `/quests/${questId}/video-progress`, {
+    method: 'POST',
+    body: JSON.stringify({ timestamp: ts }),
+  });
+  return res;
+}
+
+function normalizeQuest(raw) {
+  const config = raw.config ?? {};
+  const userStatus = raw.user_status ?? {};
+  const task = config.messages?.task_incomplete?.[0] ?? '';
+  const secondsNeeded = config.stream_duration_requirement
+    ?? config.video_stream_duration_requirement
+    ?? config.minutes_requirement * 60
+    ?? 0;
+  const progressSecs = (parseFloat(userStatus.progress ?? '0') / 100) * secondsNeeded;
+
+  return {
+    id: raw.id,
+    name: config.messages?.quest_name ?? raw.id,
+    description: task,
+    progress: parseFloat(userStatus.progress ?? '0'),
+    secondsNeeded,
+    taskType: config.task_config?.type ?? 'video',
+    enrolled: !!userStatus.enrolled_at,
+    completed: !!userStatus.completed_at,
+    progressSecs,
+  };
+}
+
+const jobs = new Map();
+
+export function getJob(userId) {
+  return jobs.get(userId) ?? null;
+}
+
+export function listJobs() {
+  return [...jobs.entries()].map(([userId, job]) => ({ userId, ...job.summary() }));
+}
+
+export async function startRunner({ userId, userToken, channelId, botToken, speedMultiplier = 5, heartbeatInterval = 30 }) {
+  if (jobs.has(userId)) throw new Error('มี job ที่กำลังรันอยู่แล้ว ใช้ /stop ก่อน');
+
+  const controller = new AbortController();
+  const { signal } = controller;
+
+  let status = 'starting';
+  let questList = [];
+  let currentQuestName = '';
+
+  const summary = () => ({ status, currentQuestName, questCount: questList.length });
+
+  jobs.set(userId, { controller, summary });
+
+  async function notify(msg) {
+    if (!botToken || !channelId) return;
+    try {
+      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: msg }),
+      });
+    } catch {}
+  }
+
+  (async () => {
+    try {
+      await notify('🔍 กำลังดึงข้อมูล quest...');
+
+      const quests = await fetchQuests(userToken);
+      const active = quests.filter((q) => !q.completed);
+      questList = active;
+
+      if (active.length === 0) {
+        await notify('✅ ไม่มี quest ที่ต้องทำแล้ว');
+        status = 'done';
+        jobs.delete(userId);
+        return;
+      }
+
+      const lines = active.map((q, i) => `\`#${i + 1}\` **${q.name}** — ${q.progress.toFixed(1)}%`).join('\n');
+      await notify(`📋 พบ **${active.length}** quest:\n${lines}\n\n⚡ เริ่มทำ quest อัตโนมัติ...`);
+      status = 'running';
+
+      for (const quest of active) {
+        if (signal.aborted) break;
+
+        if (!quest.enrolled) {
+          await notify(`📥 Enroll: **${quest.name}**`);
+          await enrollQuest(userToken, quest.id).catch(() => {});
+        }
+
+        currentQuestName = quest.name;
+
+        if (quest.taskType.includes('stream')) {
+          await notify(`🎮 กำลังทำ **${quest.name}** (stream quest)...`);
+          await runStreamQuest(userToken, quest, signal, notify, heartbeatInterval);
+        } else {
+          await notify(`▶️ กำลังทำ **${quest.name}** (video quest)...`);
+          await runVideoQuest(userToken, quest, signal, notify, speedMultiplier, heartbeatInterval);
+        }
+      }
+
+      if (!signal.aborted) {
+        await notify('🎉 ทำ quest ครบทุกอันแล้ว!');
+        status = 'done';
+      }
+    } catch (err) {
+      await notify(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+      status = 'error';
+    } finally {
+      jobs.delete(userId);
+    }
+  })();
+
+  return { questCount: 0, message: 'กำลังเริ่ม...' };
+}
+
+async function runVideoQuest(token, quest, signal, notify, speedMultiplier, heartbeatSecs) {
+  let current = quest.progressSecs;
+  const target = quest.secondsNeeded;
+  let lastNotifyPct = Math.floor((current / target) * 100);
+
+  while (current < target) {
+    if (signal.aborted) return;
+
+    const res = await sendVideoProgress(token, quest.id, current).catch(() => null);
+    current += speedMultiplier * heartbeatSecs;
+
+    const pct = Math.min(Math.floor((current / target) * 100), 100);
+    if (pct >= lastNotifyPct + 25 || pct >= 100) {
+      await notify(`⏳ **${quest.name}**: ${pct}%`);
+      lastNotifyPct = pct;
+    }
+
+    if (res === null || current >= target) break;
+
+    await sleep(heartbeatSecs * 1000, signal);
+  }
+
+  await sendVideoProgress(token, quest.id, target).catch(() => {});
+  await notify(`✅ **${quest.name}** เสร็จแล้ว!`);
+}
+
+async function runStreamQuest(token, quest, signal, notify, heartbeatSecs) {
+  const total = quest.secondsNeeded;
+  const interval = heartbeatSecs;
+  const ticks = Math.ceil(total / interval);
+  const startTick = Math.floor((quest.progressSecs / total) * ticks);
+
+  for (let i = startTick; i < ticks; i++) {
+    if (signal.aborted) return;
+    await discordFetch(token, `/quests/${quest.id}/heartbeat`, {
+      method: 'POST',
+      body: JSON.stringify({ stream_key: `${quest.id}:stream` }),
+    }).catch(() => {});
+    const pct = Math.round(((i + 1) / ticks) * 100);
+    if (pct % 25 === 0 || pct >= 100) {
+      await notify(`⏳ **${quest.name}**: ${pct}%`);
+    }
+    await sleep(interval * 1000, signal);
+  }
+  await notify(`✅ **${quest.name}** เสร็จแล้ว!`);
+}
+
+export function stopRunner(userId) {
+  const job = jobs.get(userId);
+  if (!job) return false;
+  job.controller.abort();
+  jobs.delete(userId);
+  return true;
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => { clearTimeout(t); reject(new Error('aborted')); }, { once: true });
+  });
+}

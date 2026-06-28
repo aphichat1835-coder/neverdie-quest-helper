@@ -7,10 +7,12 @@ import * as questList from './commands/quest-list.js';
 import * as questDone from './commands/quest-done.js';
 import * as questRemove from './commands/quest-remove.js';
 import * as questStatus from './commands/quest-status.js';
+import * as run from './commands/run.js';
+import * as stop from './commands/stop.js';
 
-const commands = [ping, help, questAdd, questList, questDone, questRemove, questStatus].map(
-  (cmd) => cmd.data.toJSON()
-);
+const commands = [
+  ping, help, questAdd, questList, questDone, questRemove, questStatus, run, stop,
+].map((cmd) => cmd.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 

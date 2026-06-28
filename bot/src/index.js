@@ -7,11 +7,13 @@ import * as questList from './commands/quest-list.js';
 import * as questDone from './commands/quest-done.js';
 import * as questRemove from './commands/quest-remove.js';
 import * as questStatus from './commands/quest-status.js';
+import * as run from './commands/run.js';
+import * as stop from './commands/stop.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
 
-const commands = [ping, help, questAdd, questList, questDone, questRemove, questStatus];
+const commands = [ping, help, questAdd, questList, questDone, questRemove, questStatus, run, stop];
 for (const cmd of commands) {
   client.commands.set(cmd.data.name, cmd);
 }
@@ -21,6 +23,17 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith('run_modal:')) {
+      try {
+        await run.handleModal(interaction);
+      } catch (err) {
+        console.error('❌ Modal error:', err);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import questsRouter from './routes/quests.js';
+import runnerRouter from './routes/runner.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -22,6 +23,7 @@ app.use((req, res, next) => {
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/quests', questsRouter);
+app.use('/runner', runnerRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
