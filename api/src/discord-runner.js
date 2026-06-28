@@ -141,48 +141,71 @@ export async function startRunner({ userId, userToken, channelId, botToken, spee
 
   (async () => {
     try {
-      await notify('🔍 กำลังดึงข้อมูล quest...');
-
-      const quests = await fetchQuests(userToken);
-      const active = quests.filter((q) => !q.completed);
-      questList = active;
-
-      if (active.length === 0) {
-        await notify('✅ ไม่มี quest ที่ต้องทำแล้ว');
-        status = 'done';
-        jobs.delete(userId);
-        return;
-      }
-
-      const lines = active.map((q, i) => `\`#${i + 1}\` **${q.name}** — ${q.progress.toFixed(1)}%`).join('\n');
-      await notify(`📋 พบ **${active.length}** quest:\n${lines}\n\n⚡ เริ่มทำ quest อัตโนมัติ...`);
       status = 'running';
+      let round = 0;
 
-      for (const quest of active) {
+      while (!signal.aborted) {
+        round++;
+
+        await notify(`🔍 กำลังเช็ค quest${round > 1 ? ` (รอบที่ ${round})` : ''}...`);
+
+        const allQuests = await fetchQuests(userToken);
+        const active = allQuests.filter((q) => !q.completed);
+        questList = active;
+
+        if (active.length === 0) {
+          await notify('✅ ไม่มี quest ที่ต้องทำแล้ว ทุกอันเสร็จหมดแล้ว! 🎉');
+          status = 'done';
+          break;
+        }
+
+        const planLines = active.map((q, i) =>
+          `\`${i + 1}.\` **${q.name}** ${q.enrolled ? '' : '*(ยังไม่ได้ enroll)*'} — ${q.progress.toFixed(1)}%`
+        ).join('\n');
+
+        await notify(
+          `📋 **แผนการทำ quest รอบที่ ${round}** (${active.length} รายการ)\n${planLines}\n\n⚡ เริ่มทำเลย...`
+        );
+
+        for (const quest of active) {
+          if (signal.aborted) break;
+
+          if (!quest.enrolled) {
+            await notify(`📥 กำลัง enroll **${quest.name}**...`);
+            await enrollQuest(userToken, quest.id).catch((e) => {
+              notify(`⚠️ Enroll ไม่ได้: ${e.message}`);
+            });
+          }
+
+          currentQuestName = quest.name;
+
+          if (quest.taskType.includes('stream')) {
+            await notify(`🎮 กำลังทำ **${quest.name}** (stream)...`);
+            await runStreamQuest(userToken, quest, signal, notify, heartbeatInterval).catch((e) => {
+              if (e.message !== 'aborted') notify(`⚠️ **${quest.name}** error: ${e.message}`);
+            });
+          } else {
+            await notify(`▶️ กำลังทำ **${quest.name}** (video)...`);
+            await runVideoQuest(userToken, quest, signal, notify, speedMultiplier, heartbeatInterval).catch((e) => {
+              if (e.message !== 'aborted') notify(`⚠️ **${quest.name}** error: ${e.message}`);
+            });
+          }
+        }
+
         if (signal.aborted) break;
 
-        if (!quest.enrolled) {
-          await notify(`📥 Enroll: **${quest.name}**`);
-          await enrollQuest(userToken, quest.id).catch(() => {});
-        }
-
-        currentQuestName = quest.name;
-
-        if (quest.taskType.includes('stream')) {
-          await notify(`🎮 กำลังทำ **${quest.name}** (stream quest)...`);
-          await runStreamQuest(userToken, quest, signal, notify, heartbeatInterval);
-        } else {
-          await notify(`▶️ กำลังทำ **${quest.name}** (video quest)...`);
-          await runVideoQuest(userToken, quest, signal, notify, speedMultiplier, heartbeatInterval);
-        }
+        await notify(`✔️ รอบที่ ${round} เสร็จแล้ว — กำลังเช็คว่ามี quest ใหม่ไหม...`);
+        await sleep(3000, signal);
       }
 
-      if (!signal.aborted) {
-        await notify('🎉 ทำ quest ครบทุกอันแล้ว!');
-        status = 'done';
+      if (signal.aborted) {
+        await notify('🛑 Quest Runner ถูกหยุดแล้ว');
+        status = 'stopped';
       }
     } catch (err) {
-      await notify(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+      if (err.message !== 'aborted') {
+        await notify(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+      }
       status = 'error';
     } finally {
       jobs.delete(userId);
