@@ -10,31 +10,24 @@ export async function execute(interaction) {
     .setColor(0x5865f2)
     .addFields(
       {
-        name: '🤖 Quest Runner (อัตโนมัติ)',
-        value: [
-          '`/run` — กรอก token แล้วทำ quest อัตโนมัติทุกอัน',
-          '`/stop` — หยุด Runner ที่กำลังทำงาน',
-        ].join('\n'),
-      },
-      {
         name: '🎛️ แผงควบคุม',
-        value: '`/panel` — เปิดแผงควบคุมพร้อมปุ่ม: เพิ่ม, แก้ไข, ลบ, Done, สถิติ, Runner',
+        value: '`/panel` — เปิดแผงควบคุมพร้อมปุ่ม: เพิ่ม, แก้ไข, ลบ, Done, สถิติ',
       },
       {
         name: '📝 Quest Tracker',
         value: [
-          '`/quest-add name: ... deadline: ... note: ...` — เพิ่มเควส',
-          '`/quest-list` — ดูรายการทั้งหมด',
-          '`/quest-done id: ...` — มาร์คว่าเสร็จ',
-          '`/quest-remove id: ...` — ลบเควส',
-          '`/quest-status` — สรุปสถิติ',
+          '`/quest-add` — เพิ่มเควสใหม่',
+          '`/quest-list` — ดูรายการเควสทั้งหมด',
+          '`/quest-done` — มาร์คเควสว่าเสร็จแล้ว',
+          '`/quest-remove` — ลบเควสออกจากรายการ',
+          '`/quest-status` — ดูสรุปสถิติเควส',
         ].join('\n'),
       },
       {
         name: '🔧 ระบบ',
         value: [
-          '`/api-status` — เช็กสถานะระบบ/ฐานข้อมูล',
-          '`/ping` — เช็กว่าบอทออนไลน์',
+          '`/api-status` — เช็กสถานะระบบและฐานข้อมูล',
+          '`/ping` — เช็กว่าบอทออนไลน์และวัด latency',
           '`/help` — แสดงหน้านี้',
         ].join('\n'),
       },

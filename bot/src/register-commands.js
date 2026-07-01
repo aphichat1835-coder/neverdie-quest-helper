@@ -1,21 +1,19 @@
 import { REST, Routes } from 'discord.js';
 import { config } from './config.js';
-import * as ping from './commands/ping.js';
-import * as help from './commands/help.js';
-import * as apiStatus from './commands/api-status.js';
-import * as questAdd from './commands/quest-add.js';
-import * as questList from './commands/quest-list.js';
-import * as questDone from './commands/quest-done.js';
+import * as ping        from './commands/ping.js';
+import * as help        from './commands/help.js';
+import * as apiStatus   from './commands/api-status.js';
+import * as questAdd    from './commands/quest-add.js';
+import * as questList   from './commands/quest-list.js';
+import * as questDone   from './commands/quest-done.js';
 import * as questRemove from './commands/quest-remove.js';
 import * as questStatus from './commands/quest-status.js';
-import * as run from './commands/run.js';
-import * as stop from './commands/stop.js';
-import * as panel from './commands/panel.js';
+import * as panel       from './commands/panel.js';
 
 const commands = [
   ping, help, apiStatus,
   questAdd, questList, questDone, questRemove, questStatus,
-  run, stop, panel,
+  panel,
 ].map((cmd) => cmd.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.token);
