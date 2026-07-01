@@ -1,317 +1,199 @@
 <div align="center">
 
-# ✨ NeverDie Quest Helper
+# NeverDie Quest Bot
 
-<p align="center">
-  <img src="src-tauri/icons/icon.png" alt="NeverDie Quest Helper Logo" width="150">
-</p>
-
-**ระบบจัดการ Discord Quest อัตโนมัติ — ครบทั้ง Desktop App และ Discord Bot**
-
-ดูแล Quest ทุกรายการให้คุณโดยอัตโนมัติ ไม่ว่าจะเป็น Video, Stream หรือ Game Quest  
-พร้อมแผงควบคุมใน Discord Server ของคุณเอง
-
-⭐ **ถ้าโปรเจกนี้มีประโยชน์ กด Star ให้ด้วยนะครับ!** ⭐
+**ระบบบริหารจัดการ Discord Quest อัตโนมัติ ผ่าน Discord Bot**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-22-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-20-green.svg)](https://nodejs.org/)
 [![discord.js](https://img.shields.io/badge/discord.js-14-5865f2.svg)](https://discord.js.org/)
-[![Express](https://img.shields.io/badge/express-4-black.svg)](https://expressjs.com/)
-[![Tauri](https://img.shields.io/badge/tauri-2-blue.svg)](https://tauri.app/)
-[![Vue](https://img.shields.io/badge/vue-3.5-green.svg)](https://vuejs.org/)
+[![SQLite](https://img.shields.io/badge/sqlite-better--sqlite3-lightgrey.svg)](https://github.com/WiseLibs/better-sqlite3)
 
 </div>
 
 ---
 
-## 📖 ภาพรวมระบบ
+## ภาพรวม
 
-โปรเจกนี้ประกอบด้วย **3 ส่วนหลัก** ที่ทำงานร่วมกัน:
+**NeverDie Quest Bot** คือ Discord Bot ที่รวมระบบ Quest Runner และ Quest Tracker ไว้ในกระบวนการเดียว ควบคุมทุกอย่างได้จาก Discord Server โดยไม่ต้องติดตั้งซอฟต์แวร์เพิ่มเติม
 
 ```
 Discord Server
-      ↓  /run /panel /quest-add ...
-  🤖 bot/          Discord Bot (discord.js)
-      ↓  HTTP REST
-  🔌 api/          API Server (Express + SQLite)
-      ↓  discord.com/api/v9
-  🎮 Quest Automation
-      ↑
-  🖥️  src-tauri/   Desktop App (Tauri + Vue + Rust)
+      │
+      ▼  Slash Commands
+  ┌─────────────┐
+  │  Discord Bot │  ← discord.js 14 · Node.js
+  └──────┬──────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+  Quest    Quest
+  Runner   Tracker
+ (Auto)   (SQLite)
 ```
-
-| ส่วน | เทคโนโลยี | หน้าที่ |
-|------|-----------|---------|
-| `bot/` | discord.js 14, Node.js | แผงควบคุมใน Discord, รับคำสั่ง slash |
-| `api/` | Express, SQLite, Node.js | API กลาง, ระบบ Quest Runner |
-| `src-tauri/` | Tauri 2, Vue 3, Rust | Desktop App สำหรับจัดการเต็มรูปแบบ |
 
 ---
 
-## 🤖 Discord Bot
+## การติดตั้ง
 
-### ติดตั้งและใช้งาน
+### ข้อกำหนดเบื้องต้น
 
-**1. ตั้งค่า Environment**
+- Node.js 20 ขึ้นไป
+- npm หรือ yarn
+
+### ขั้นตอน
 
 ```bash
+# 1. เข้าไปที่โฟลเดอร์บอท
 cd bot
-cp .env.example .env
-```
 
-แก้ไฟล์ `bot/.env`:
-
-| ตัวแปร | คำอธิบาย |
-|--------|---------|
-| `DISCORD_BOT_TOKEN` | Token ของบอทจาก [Discord Developer Portal](https://discord.com/developers) |
-| `DISCORD_CLIENT_ID` | Application ID ของบอท |
-| `DISCORD_GUILD_ID` | Server ID ที่จะใช้งาน |
-| `OWNER_ID` | Discord User ID ของเจ้าของ |
-| `API_URL` | URL ของ API Server เช่น `https://your-api.com` |
-| `API_SECRET` | Secret key สำหรับเชื่อมต่อ API |
-| `TIMEZONE` | Timezone (default: `Asia/Bangkok`) |
-
-**2. ติดตั้ง dependencies**
-
-```bash
+# 2. ติดตั้ง dependencies
 npm install
-```
 
-**3. Register Slash Commands** (ทำครั้งเดียว)
+# 3. ตั้งค่า environment
+cp .env.example .env
+# แก้ไขไฟล์ .env ให้ครบถ้วน
 
-```bash
+# 4. ลงทะเบียน Slash Commands (ทำครั้งแรกหรือเมื่อแก้คำสั่ง)
 npm run register
-```
 
-**4. เริ่มใช้งาน**
-
-```bash
-npm start          # production
-npm run dev        # development (auto-restart)
-```
-
----
-
-### 📋 คำสั่งทั้งหมด
-
-#### 🎮 Quest Runner — อัตโนมัติ
-
-| คำสั่ง | คำอธิบาย |
-|--------|---------|
-| `/run` | เปิดหน้าต่างกรอก token แล้วเริ่มทำ quest ทุกอันอัตโนมัติ |
-| `/stop` | หยุด Quest Runner ที่กำลังทำงานอยู่ |
-| `/panel` | เปิดแผงควบคุมพร้อมปุ่มกดครบชุด |
-
-#### 📝 Quest Tracker — จัดการเอง
-
-| คำสั่ง | คำอธิบาย |
-|--------|---------|
-| `/quest-add` | เพิ่ม quest ใหม่ พร้อม deadline และโน้ต |
-| `/quest-list` | ดูรายการ quest ทั้งหมด |
-| `/quest-done id:...` | มาร์ค quest ว่าเสร็จแล้ว |
-| `/quest-remove id:...` | ลบ quest ออกจากรายการ |
-| `/quest-status` | ดูสรุปสถิติทั้งหมด |
-
-#### 🔧 ทั่วไป
-
-| คำสั่ง | คำอธิบาย |
-|--------|---------|
-| `/ping` | เช็กว่าบอทออนไลน์อยู่ไหม |
-| `/help` | แสดงคำสั่งทั้งหมด |
-
----
-
-### 🎛️ แผงควบคุม `/panel`
-
-พิมพ์ `/panel` ในห้อง Discord จะได้แผงควบคุมพร้อมปุ่มกด:
-
-```
-┌──────────────────────────────────────────┐
-│  🎮 NeverDie Quest — แผงควบคุม           │
-│  📦 ทั้งหมด: 5  ✅ เสร็จ: 3  🔴 ค้าง: 2  │
-├──────────────────────────────────────────┤
-│ [📋 ดูรายการ] [➕ เพิ่ม Quest]            │
-│ [✅ Mark Done] [📊 สถิติ]                 │
-│ [⚡ Start Runner] [🛑 Stop] [🔄 Refresh]  │
-└──────────────────────────────────────────┘
-```
-
-ทุกปุ่มทำงานได้ทันที ไม่ต้องพิมพ์คำสั่งใหม่
-
----
-
-### ⚡ Quest Runner — Flow อัตโนมัติ
-
-เมื่อกด `/run` หรือปุ่ม **Start Runner** ในแผง:
-
-```
-1. 🔍 เช็ค quest ทั้งหมดในบัญชี
-2. 📋 แสดงแผนการทำ quest แต่ละรายการ
-3. 📥 Enroll quest ที่ยังไม่ได้รับ
-4. ▶️  ทำ quest ที่ 1 → อัปเดต 25% → 50% → 75% → ✅
-5. ▶️  ทำ quest ที่ 2, 3, ... จนครบ
-6. 🔍 เช็คใหม่ว่ามี quest เพิ่มเติมไหม
-7. 🎉 จบเมื่อทำ quest ทุกอันเสร็จ
-```
-
-อัปเดต progress แจ้งใน channel แบบ real-time ทุก 25%
-
----
-
-## 🔌 API Server
-
-### ติดตั้งและใช้งาน
-
-```bash
-cd api
-cp .env.example .env
-npm install
+# 5. เริ่มใช้งาน
 npm start
 ```
 
-แก้ไฟล์ `api/.env`:
+---
 
-| ตัวแปร | คำอธิบาย |
-|--------|---------|
-| `PORT` | Port ที่รัน (default: `3000`) |
-| `DATABASE_PATH` | Path ไฟล์ SQLite (default: `./data/quests.db`) |
-| `API_SECRET` | Secret key (ต้องตรงกับ bot) |
-| `DISCORD_BOT_TOKEN` | Bot token สำหรับส่งข้อความกลับ Discord |
+## การตั้งค่า Environment
 
-### Endpoints
+แก้ไขไฟล์ `bot/.env` ด้วยค่าต่อไปนี้:
 
-| Method | Path | คำอธิบาย |
-|--------|------|---------|
-| `GET` | `/health` | เช็ก status |
-| `GET` | `/quests` | ดู quest ทั้งหมด |
-| `GET` | `/quests/stats` | สถิติ |
-| `GET` | `/quests/:id` | ดู quest ตาม ID |
-| `POST` | `/quests` | เพิ่ม quest |
-| `PATCH` | `/quests/:id` | แก้ไข quest |
-| `PATCH` | `/quests/:id/done` | มาร์คว่าเสร็จ |
-| `DELETE` | `/quests/:id` | ลบ quest |
-| `POST` | `/runner/start` | เริ่ม Quest Runner |
-| `POST` | `/runner/stop` | หยุด Quest Runner |
-| `GET` | `/runner/status/:userId` | ดู status ของ Runner |
-
-ทุก request ต้องส่ง header:
-```
-x-api-secret: <API_SECRET>
-```
+| ตัวแปร | คำอธิบาย | จำเป็น |
+|--------|----------|--------|
+| `DISCORD_BOT_TOKEN` | Token ของ Bot จาก Discord Developer Portal | ✅ |
+| `DISCORD_CLIENT_ID` | Application ID ของ Bot | ✅ |
+| `DISCORD_GUILD_ID` | ID ของ Discord Server ที่ใช้งาน | ✅ |
+| `OWNER_ID` | Discord User ID ของเจ้าของ Bot | ✅ |
+| `TIMEZONE` | Timezone (ค่าเริ่มต้น: `Asia/Bangkok`) | ➖ |
+| `LOG_CHANNEL_ID` | ID ของห้องสำหรับรับการแจ้งเตือน | ➖ |
+| `MANAGER_ROLE_ID` | ID ของ Role ที่ได้รับสิทธิ์จัดการ | ➖ |
+| `DATABASE_PATH` | ที่อยู่ไฟล์ฐานข้อมูล (ค่าเริ่มต้น: `./data/quests.db`) | ➖ |
 
 ---
 
-## 🖥️ Desktop App (Tauri)
+## คำสั่งทั้งหมด
 
-แอปเดสก์ท็อปสำหรับจัดการ Quest แบบ Offline บนเครื่อง
+### แผงควบคุมหลัก
 
-### ความสามารถ
+| คำสั่ง | คำอธิบาย |
+|--------|----------|
+| `/panel` | เปิดแผงควบคุมพร้อมปุ่มกดครบชุด |
+| `/ping` | ตรวจสอบสถานะ Bot |
+| `/help` | แสดงรายการคำสั่งทั้งหมด |
+| `/api-status` | ตรวจสอบสถานะฐานข้อมูลและ Runner |
 
-- 🔑 **ดึง session อัตโนมัติ** จาก Discord client บนเครื่อง
-- 🎮 **Game Simulator** — จำลองการเล่นเกมสำหรับ Game Quest
-- 📺 **Video & Stream Automation** — กดครั้งเดียว ระบบทำงานเบื้องหลัง
-- 🔍 **Quest Filter** — กรองตามประเภท, รางวัล, สถานะ
-- 👥 **หลายบัญชี** — จัดการได้หลาย account
-- 🌏 **16 ภาษา** — ไทย, อังกฤษ, จีน, ญี่ปุ่น, เกาหลี และอื่น ๆ
+### Quest Runner
 
-### Architecture (Desktop App)
+| คำสั่ง | คำอธิบาย |
+|--------|----------|
+| `/run` | เริ่มต้น Quest Runner |
+| `/stop` | หยุด Quest Runner ที่กำลังทำงาน |
 
-```
-┌───────────────────────────────────────────────────────┐
-│  Vue.js Frontend (Vite)                                │
-│  ├─ Views: Home, GameSimulator, Settings, Debug       │
-│  ├─ Stores: auth, quests, version, toast (Pinia)      │
-│  └─ API: tauri.ts (IPC bridge)                        │
-├───────────────────────────────────────────────────────┤
-│  Rust Backend (Tauri 2)                               │
-│  ├─ token_extractor.rs   — LevelDB + AES-GCM          │
-│  ├─ cdp_client.rs        — Chrome DevTools Protocol   │
-│  ├─ discord_api.rs       — HTTP client                │
-│  ├─ quest_completer.rs   — Video/stream automation    │
-│  ├─ game_simulator.rs    — Process management         │
-│  └─ super_properties.rs  — Client fingerprinting      │
-└───────────────────────────────────────────────────────┘
-                        ↓ HTTPS
-            Discord API (discord.com/api/v9)
-```
+### Quest Tracker
+
+| คำสั่ง | คำอธิบาย |
+|--------|----------|
+| `/quest-add` | เพิ่ม Quest พร้อมกำหนด Deadline และบันทึก |
+| `/quest-list` | แสดงรายการ Quest ทั้งหมด |
+| `/quest-done` | บันทึก Quest ว่าเสร็จสิ้น |
+| `/quest-remove` | ลบ Quest ออกจากรายการ |
+| `/quest-status` | แสดงสรุปสถิติ Quest |
 
 ---
 
-## 🏗️ โครงสร้าง Repository
+## แผงควบคุม `/panel`
+
+แผงควบคุมแสดงข้อมูลแบบ real-time และมีปุ่มดำเนินการครบชุด:
 
 ```
-neverdie-quest-helper/
-├── bot/                    Discord Bot
-│   ├── src/
-│   │   ├── commands/       slash commands ทั้งหมด
-│   │   ├── index.js        entry point + event handler
-│   │   ├── register-commands.js
-│   │   ├── storage.js      เรียก API
-│   │   └── config.js
-│   ├── package.json
-│   └── .env.example
-│
-├── api/                    API Server
-│   ├── src/
-│   │   ├── routes/         quests, runner
-│   │   ├── index.js        Express server
-│   │   ├── db.js           SQLite (better-sqlite3)
-│   │   └── discord-runner.js  Quest automation engine
-│   ├── package.json
-│   └── .env.example
-│
-├── src/                    Vue.js Frontend (Desktop)
-├── src-tauri/              Rust Backend (Desktop)
-├── src-runner/             Game Runner binary
-├── src-cdp-launcher/       CDP Launcher binary
-└── .github/workflows/      CI/CD (frontend + bot + api)
+┌─────────────────────────────────────────────┐
+│  🎮 NeverDie Quest — Control Panel           │
+│  📦 ทั้งหมด: 5  ✅ เสร็จสิ้น: 3  🔴 ค้าง: 2 │
+├─────────────────────────────────────────────┤
+│  [📋 รายการ]  [➕ เพิ่ม]  [✅ Done]  [📊 สถิติ]  │
+│  [⚡ Start Runner]  [🛑 Stop]  [🔄 Refresh]  │
+└─────────────────────────────────────────────┘
+```
+
+Bot จะแสดงสถานะความคืบหน้าแบบ real-time ผ่าน embed message เดียว โดยอัปเดตต่อเนื่องแทนการส่งข้อความใหม่
+
+---
+
+## ระบบแจ้งเตือนอัตโนมัติ
+
+หากตั้งค่า `LOG_CHANNEL_ID` ไว้ ระบบจะส่งการแจ้งเตือนอัตโนมัติ:
+
+- **ทุก 1 ชั่วโมง** — ตรวจสอบ Quest ที่ใกล้ถึง Deadline
+- **ทุกวัน เวลา 08:00 น.** — สรุปสถานะ Quest ประจำวัน
+
+---
+
+## โครงสร้างโปรเจกต์
+
+```
+bot/
+├── src/
+│   ├── commands/          # Slash Commands ทั้งหมด
+│   │   ├── panel.js       # แผงควบคุมหลัก
+│   │   ├── run.js         # Quest Runner
+│   │   ├── stop.js        # หยุด Runner
+│   │   ├── quest-add.js
+│   │   ├── quest-list.js
+│   │   ├── quest-done.js
+│   │   ├── quest-remove.js
+│   │   ├── quest-status.js
+│   │   ├── api-status.js
+│   │   ├── ping.js
+│   │   └── help.js
+│   ├── config.js          # ค่าตั้งต้นจาก .env
+│   ├── db.js              # ฐานข้อมูล SQLite + schema
+│   ├── storage.js         # Data access layer
+│   ├── discord-runner.js  # Quest automation engine
+│   ├── worker.js          # Background jobs (deadline check, daily summary)
+│   ├── permissions.js     # ระบบสิทธิ์
+│   ├── index.js           # Entry point
+│   └── register-commands.js
+├── data/                  # ไฟล์ฐานข้อมูล SQLite (auto-generated)
+├── .env.example
+└── package.json
 ```
 
 ---
 
-## 🔒 ความปลอดภัย
+## สิทธิ์การใช้งาน
 
-- **Token ไม่ถูกบันทึก** — ใช้เฉพาะใน memory ขณะทำงาน ไม่มีการเก็บลงดิสก์
-- **HTTPS ทุก request** — การสื่อสารกับ Discord เข้ารหัสตลอด
-- **API Secret** — bot และ api คุยกันด้วย secret key ที่กำหนดเอง
-- **Ephemeral replies** — ข้อมูล token แสดงเฉพาะผู้ใช้คนเดียวใน Discord
+ระบบแบ่งสิทธิ์เป็น 3 ระดับ:
 
-> **หมายเหตุ:** โปรดศึกษา Terms of Service ของ Discord ก่อนใช้งาน และใช้ด้วยความรับผิดชอบ
-
----
-
-## ⚙️ CI/CD
-
-GitHub Actions รัน 3 jobs อัตโนมัติทุก push:
-
-| Job | ตรวจสอบอะไร |
-|-----|------------|
-| `frontend-checks` | i18n, unit tests, build (pnpm) |
-| `bot-checks` | npm install, syntax check ทุกไฟล์ |
-| `api-checks` | npm install, syntax check ทุกไฟล์ |
+| ระดับ | คำอธิบาย |
+|-------|----------|
+| **Owner** | เจ้าของ Bot — สิทธิ์สูงสุด |
+| **Admin** | ผู้ดูแล Server — สิทธิ์จัดการทุกอย่าง |
+| **Manager** | Role ที่กำหนดผ่าน `MANAGER_ROLE_ID` |
 
 ---
 
-## 🤝 Contributing
+## การพัฒนา
 
-ยินดีรับ Pull Request ทุกรูปแบบ! ดูรายละเอียดได้ที่ [CONTRIBUTING.md](CONTRIBUTING.md)
+```bash
+# Development mode (auto-restart เมื่อแก้ไขไฟล์)
+npm run dev
+
+# ลงทะเบียนคำสั่งใหม่หลังแก้ไข
+npm run register
+```
 
 ---
 
-## 📄 License
+## License
 
-MIT License — ดูที่ [LICENSE](LICENSE)
-
----
-
-## 🙏 Credits
-
-**แรงบันดาลใจและแหล่งอ้างอิง**
-- [markterence/discord-quest-completer](https://github.com/markterence/discord-quest-completer)
-- [power0matin/discord-quest-auto-completer](https://github.com/power0matin/discord-quest-auto-completer)
-- [aamiaa/CompleteDiscordQuest.md](https://gist.github.com/aamiaa/204cd9d42013ded9faf646fae7f89fbb)
-- [docs.discord.food](https://docs.discord.food/)
-
-**เทคโนโลยีที่ใช้**
-
-`discord.js` · `Express` · `SQLite` · `Tauri` · `Vue.js` · `Pinia` · `Rust` · `Node.js` · `TailwindCSS` · `shadcn-vue`
+MIT License — ดูรายละเอียดที่ [LICENSE](LICENSE)

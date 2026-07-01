@@ -1,32 +1,79 @@
-# NeverDie Quest Bot (Merged)
+# NeverDie Quest Bot — คู่มือการใช้งาน
 
-บอท Discord + Quest Runner + Quest Tracker รวมเป็นโปรเซสเดียว ไม่ต้องรัน API แยกอีกต่อไป
+Bot สำหรับบริหารจัดการ Discord Quest อัตโนมัติ ควบคุมผ่าน Slash Commands ใน Discord Server
 
-## ติดตั้ง
+---
+
+## การติดตั้ง
+
 ```bash
 npm install
-cp .env.example .env   # แล้วกรอกค่าให้ครบ
-npm run register       # ลง slash command ครั้งแรก (หรือทุกครั้งที่แก้คำสั่ง)
-npm start               # รันบอท
+cp .env.example .env
+# กรอกค่าใน .env ให้ครบถ้วน
+npm run register   # ลงทะเบียน Slash Commands (ทำครั้งแรก)
+npm start          # เริ่มใช้งาน
 ```
 
+---
+
+## ตัวแปร Environment
+
+| ตัวแปร | คำอธิบาย | จำเป็น |
+|--------|----------|--------|
+| `DISCORD_BOT_TOKEN` | Token ของ Bot | ✅ |
+| `DISCORD_CLIENT_ID` | Application ID ของ Bot | ✅ |
+| `DISCORD_GUILD_ID` | Server ID | ✅ |
+| `OWNER_ID` | Discord User ID ของเจ้าของ | ✅ |
+| `TIMEZONE` | Timezone (ค่าเริ่มต้น: `Asia/Bangkok`) | ➖ |
+| `LOG_CHANNEL_ID` | ห้องรับการแจ้งเตือน | ➖ |
+| `MANAGER_ROLE_ID` | Role สำหรับผู้จัดการ | ➖ |
+| `DATABASE_PATH` | ที่อยู่ไฟล์ DB (ค่าเริ่มต้น: `./data/quests.db`) | ➖ |
+
+---
+
 ## คำสั่งทั้งหมด
-- `/panel` — แผงควบคุมหลัก มีปุ่ม: รายการ / เพิ่ม / Done / แก้ไข / ลบ / สถิติ / 🪙 กรอก Token-Start Runner / 🛑 Stop Runner / Refresh
-- `/run` — เปิด modal กรอก Discord User Token แล้วเริ่มทำเควสอัตโนมัติทันที
-- `/stop` — หยุด Runner ที่กำลังทำงาน
-- `/quest-add /quest-list /quest-done /quest-remove /quest-status` — จัดการ quest tracker (คนละเรื่องกับ Runner อัตโนมัติ ไว้ track เควส/deadline เอง)
-- `/api-status` — เช็คสถานะฐานข้อมูลและจำนวน Runner job ที่กำลังทำงาน
-- `/ping /help`
 
-## ระหว่าง Runner ทำงาน
-บอทจะส่งข้อความ embed **1 ข้อความ** ในห้องที่สั่ง แล้ว **edit ข้อความเดิมต่อเนื่อง** (ไม่สแปมห้อง) แสดง:
-- จำนวนเควสที่พบทั้งหมด
-- เควสที่กำลังทำอยู่ + ลำดับ (เช่น 2/5)
-- % ความคืบหน้าของเควสปัจจุบัน (progress bar)
-- จำนวนเควสที่เหลือ
-- เวลาที่ทำงานมาแล้ว
+### ทั่วไป
+- `/ping` — ตรวจสอบสถานะ Bot
+- `/help` — แสดงรายการคำสั่ง
+- `/api-status` — ตรวจสอบสถานะฐานข้อมูลและ Runner
 
-## หมายเหตุ
-- ใช้ `better-sqlite3` เก็บข้อมูล quest tracker ไว้ที่ `DATABASE_PATH` (default `./data/quests.db`) — ถ้า host เป็นแบบ ephemeral filesystem ต้อง mount persistent disk ไม่งั้นข้อมูลหายตอน redeploy
-- Discord User Token ที่กรอกผ่าน `/run` หรือปุ่มใน panel **ไม่ถูกบันทึกลง DB** อยู่ใน memory แค่ตอน job รันเท่านั้น
-- การใช้ user token อัตโนมัติแบบนี้ขัดกับ Discord ToS มีความเสี่ยงโดนแบนบัญชีได้ ใช้อย่างระมัดระวัง
+### Quest Runner
+- `/panel` — แผงควบคุมหลัก พร้อมปุ่ม Start / Stop / Refresh และจัดการ Quest ครบชุด
+- `/run` — เริ่มต้น Quest Runner
+- `/stop` — หยุด Quest Runner
+
+### Quest Tracker
+- `/quest-add` — เพิ่ม Quest พร้อม Deadline
+- `/quest-list` — ดูรายการ Quest ทั้งหมด
+- `/quest-done` — มาร์ค Quest ว่าเสร็จสิ้น
+- `/quest-remove` — ลบ Quest ออกจากรายการ
+- `/quest-status` — ดูสถิติสรุป
+
+---
+
+## สถานะ Runner (Real-time)
+
+ขณะที่ Runner ทำงาน Bot จะแสดงสถานะผ่าน embed message เดียว และอัปเดตต่อเนื่อง แสดงข้อมูล:
+
+- จำนวน Quest ที่พบและดำเนินการอยู่
+- ลำดับ Quest ปัจจุบัน (เช่น 2 / 5)
+- Progress bar ความคืบหน้า
+- เวลาที่ใช้ไปทั้งหมด
+
+---
+
+## ระบบแจ้งเตือน
+
+เมื่อตั้งค่า `LOG_CHANNEL_ID` ระบบจะแจ้งเตือนอัตโนมัติ:
+
+- **ทุก 1 ชั่วโมง** — Quest ที่เกิน Deadline หรือใกล้ถึงกำหนด
+- **ทุกวัน 08:00 น.** — Daily Summary สรุปสถานะ Quest ประจำวัน
+
+---
+
+## ฐานข้อมูล
+
+ใช้ `better-sqlite3` เก็บข้อมูลที่ `DATABASE_PATH`
+
+> **หมายเหตุ:** หากระบบ Host มี ephemeral filesystem ควร mount persistent disk เพื่อป้องกันข้อมูลสูญหายเมื่อ redeploy

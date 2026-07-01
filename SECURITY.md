@@ -1,27 +1,43 @@
-# Security Policy
+# นโยบายความปลอดภัย
 
-## Supported Versions
+## ขอบเขตการรักษาความปลอดภัย
 
-| Version | Supported          |
-| ------- | ------------------ |
-| Latest  | :white_check_mark: |
-| < Latest | :x:               |
+โปรเจกต์นี้ให้ความสำคัญกับความปลอดภัยของข้อมูลผู้ใช้เป็นอันดับแรก หากพบช่องโหว่หรือปัญหาด้านความปลอดภัย กรุณาแจ้งให้ทราบก่อนเผยแพร่ต่อสาธารณะ
 
-Only the latest release receives security updates. Please keep your installation up to date by downloading the newest version from [GitHub Releases](https://github.com/Masterain98/discord-quest-helper/releases).
+---
 
-## Reporting a Vulnerability
+## หลักการด้านความปลอดภัย
 
-If you discover a security vulnerability in Discord Quest Helper, please report it responsibly:
+### ข้อมูลที่ไม่ถูกบันทึกถาวร
+- ข้อมูลที่ใช้ใน Runner จะถูกเก็บไว้เฉพาะใน memory ระหว่างที่ job กำลังทำงานเท่านั้น
+- เมื่อ job สิ้นสุด ข้อมูลดังกล่าวจะถูกลบออกจาก memory โดยอัตโนมัติ — ไม่มีการบันทึกลงดิสก์หรือฐานข้อมูล
 
-1. **Do NOT** create a public GitHub issue
-2. Use GitHub's [private vulnerability reporting](https://github.com/Masterain98/discord-quest-helper/security/advisories/new) feature
-3. Include detailed steps to reproduce the vulnerability
-4. Allow reasonable time for a fix before public disclosure
+### การสื่อสารที่เข้ารหัส
+- การสื่อสารทั้งหมดกับ Discord API ใช้ HTTPS เท่านั้น
 
-### What to Expect
+### ระบบสิทธิ์
+- คำสั่งที่มีความอ่อนไหวถูกจำกัดด้วยระบบสิทธิ์ 3 ระดับ (Owner / Admin / Manager)
+- Reply ที่มีข้อมูลสำคัญจะใช้ `ephemeral: true` เสมอ — มองเห็นได้เฉพาะผู้สั่งเท่านั้น
 
-- **Initial Response**: Within 7 days
-- **Status Update**: Every 14 days until resolved
-- **Resolution**: You will be credited in the security advisory (unless you prefer anonymity)
+### ฐานข้อมูล
+- ฐานข้อมูล SQLite ใช้เก็บเฉพาะข้อมูล Quest Tracker (ชื่อ Quest, Deadline, บันทึก)
+- ไม่มีการจัดเก็บข้อมูลส่วนตัวหรือข้อมูลการยืนยันตัวตนในฐานข้อมูล
 
-If the vulnerability is accepted, we will work on a fix and release a patched version as soon as possible. If declined, we will explain why the reported issue does not constitute a security vulnerability.
+---
+
+## การแจ้งช่องโหว่
+
+หากพบช่องโหว่ด้านความปลอดภัย กรุณาติดต่อผ่าน GitHub Issues โดยระบุ:
+
+1. คำอธิบายช่องโหว่และระดับความรุนแรงโดยประมาณ
+2. ขั้นตอนการทำให้เกิดปัญหา (Proof of Concept ถ้ามี)
+3. ผลกระทบที่อาจเกิดขึ้น
+
+---
+
+## แนวทางการรักษาความปลอดภัยสำหรับผู้ใช้งาน
+
+- **ไม่เปิดเผย** ค่าใน `.env` ให้บุคคลอื่น
+- **ตั้งค่า `MANAGER_ROLE_ID`** เพื่อจำกัดผู้ที่สามารถใช้คำสั่งสำคัญ
+- หมั่น **อัปเดต Bot Token** หากสงสัยว่าข้อมูลรั่วไหล
+- ตรวจสอบ **สิทธิ์ของ Bot** ใน Discord Server ให้น้อยที่สุดเท่าที่จำเป็น
