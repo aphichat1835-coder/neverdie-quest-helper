@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { db } from '../db.js';
-import { listJobs } from '../discord-runner.js';
 
 export const data = new SlashCommandBuilder()
   .setName('api-status')
@@ -19,16 +18,21 @@ export async function execute(interaction) {
   } catch (err) {
     error = err.message;
   }
+
   const latency = Date.now() - start;
-  const jobs = listJobs();
+  const mem     = process.memoryUsage();
+  const toMB    = (n) => (n / 1024 / 1024).toFixed(1);
 
   const embed = new EmbedBuilder()
     .setTitle('🔌 System Status')
     .setColor(dbOk ? 0x57f287 : 0xed4245)
     .addFields(
-      { name: 'Database', value: `${dbOk ? '🟢 OK' : '🔴 Error'}`, inline: true },
-      { name: 'Query Latency', value: `${latency}ms`, inline: true },
-      { name: 'Runner Jobs กำลังทำงาน', value: `${jobs.length}`, inline: true },
+      { name: 'Database',       value: dbOk ? '🟢 OK' : '🔴 Error', inline: true },
+      { name: 'Query Latency',  value: `${latency}ms`,               inline: true },
+      { name: 'Bot Ping',       value: `${interaction.client.ws.ping}ms`, inline: true },
+      { name: 'RAM (RSS)',      value: `${toMB(mem.rss)} MB`,         inline: true },
+      { name: 'Heap ที่ใช้',    value: `${toMB(mem.heapUsed)} MB`,   inline: true },
+      { name: 'Heap ทั้งหมด',  value: `${toMB(mem.heapTotal)} MB`,  inline: true },
     )
     .setTimestamp();
 

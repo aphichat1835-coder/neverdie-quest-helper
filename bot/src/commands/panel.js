@@ -4,7 +4,6 @@ import {
   ModalBuilder, TextInputBuilder, TextInputStyle,
 } from 'discord.js';
 import { getAllQuests, getStats, addQuest, editQuest, markDone, removeQuest } from '../storage.js';
-import { stopRunner, getJob } from '../discord-runner.js';
 import { isAdmin, isManager } from '../permissions.js';
 
 export const data = new SlashCommandBuilder()
@@ -63,8 +62,6 @@ export async function sendPanel(interaction, isUpdate = false) {
 
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('panel:status').setLabel('📊 สถิติ').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('panel:run').setLabel('🪙 กรอก Token / Start Runner').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('panel:stop').setLabel('🛑 Stop Runner').setStyle(ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('panel:refresh').setLabel('🔄 Refresh').setStyle(ButtonStyle.Secondary),
   );
 
@@ -109,23 +106,13 @@ export async function handleButton(interaction) {
       const embed = new EmbedBuilder()
         .setTitle('📊 สถิติเควส').setColor(0xfee75c)
         .addFields(
-          { name: '📦 ทั้งหมด',        value: `${total}`,   inline: true },
-          { name: '✅ เสร็จ',           value: `${done}`,    inline: true },
-          { name: '🔴 ค้าง',            value: `${pending}`, inline: true },
-          { name: '⚠️ เกิน deadline',   value: `${overdue}`, inline: true },
-          { name: '📈 ความคืบหน้า',     value: `${bar} ${pct}%` },
+          { name: '📦 ทั้งหมด',      value: `${total}`,   inline: true },
+          { name: '✅ เสร็จ',         value: `${done}`,    inline: true },
+          { name: '🔴 ค้าง',          value: `${pending}`, inline: true },
+          { name: '⚠️ เกิน deadline', value: `${overdue}`, inline: true },
+          { name: '📈 ความคืบหน้า',   value: `${bar} ${pct}%` },
         )
         .setTimestamp();
-
-      const job = getJob(interaction.user.id);
-      if (job) {
-        const s = job.summary();
-        embed.addFields({
-          name: '⚡ Quest Runner กำลังทำงาน',
-          value: `🎯 ${s.currentQuestName || '—'} (${s.currentIndex}/${s.totalFound}) — ${s.currentPct}%\n⏳ เหลืออีก ${s.remaining} รายการ`,
-        });
-      }
-
       return interaction.editReply({ embeds: [embed] });
     } catch (err) { return interaction.editReply(`❌ ${err.message}`); }
   }
@@ -197,26 +184,6 @@ export async function handleButton(interaction) {
         )
     );
   }
-
-  if (action === 'run') {
-    if (getJob(interaction.user.id)) {
-      return interaction.reply({ content: '⚠️ คุณมี Runner ที่กำลังทำงานอยู่แล้ว ใช้ `/stop` ก่อน', ephemeral: true });
-    }
-    return interaction.showModal(
-      new ModalBuilder().setCustomId(`run_modal:${interaction.channelId}`).setTitle('⚡ Quest Runner')
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('user_token').setLabel('Discord User Token').setStyle(TextInputStyle.Paragraph).setRequired(true).setMinLength(50).setPlaceholder('วาง token ของคุณที่นี่')
-          ),
-        )
-    );
-  }
-
-  if (action === 'stop') {
-    await interaction.deferReply({ ephemeral: true });
-    const stopped = stopRunner(interaction.user.id);
-    return interaction.editReply(stopped ? '🛑 หยุด Runner แล้ว' : 'ℹ️ ไม่มี Runner กำลังทำงาน');
-  }
 }
 
 export async function handlePanelModal(interaction) {
@@ -245,10 +212,10 @@ export async function handlePanelModal(interaction) {
   }
 
   if (interaction.customId === 'panel_edit_modal') {
-    const id       = parseInt(interaction.fields.getTextInputValue('id').trim(), 10);
-    const nameRaw  = interaction.fields.getTextInputValue('name').trim();
-    const deadRaw  = interaction.fields.getTextInputValue('deadline').trim();
-    const noteRaw  = interaction.fields.getTextInputValue('note').trim();
+    const id      = parseInt(interaction.fields.getTextInputValue('id').trim(), 10);
+    const nameRaw = interaction.fields.getTextInputValue('name').trim();
+    const deadRaw = interaction.fields.getTextInputValue('deadline').trim();
+    const noteRaw = interaction.fields.getTextInputValue('note').trim();
     await interaction.deferReply({ ephemeral: true });
     if (isNaN(id)) return interaction.editReply('❌ ID ต้องเป็นตัวเลข');
     if (deadRaw && !/^\d{4}-\d{2}-\d{2}$/.test(deadRaw)) return interaction.editReply('❌ deadline ต้องเป็น YYYY-MM-DD');
