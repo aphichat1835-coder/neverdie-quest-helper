@@ -43,31 +43,6 @@ async function _fetchElectronInfo() {
   return { electronVersion, chromeVersion };
 }
 
-async function _fetchClientVersion() {
-  // Discord's update endpoint may:
-  //   (a) redirect to https://dl.discordapp.net/.../1.0.9267/DiscordSetup.exe
-  //   (b) return JSON like { url: "https://...exe", name: "1.0.9267" }
-  const res = await fetch(
-    'https://discord.com/api/updates/distributions/app/installers/latest?platform=win&channel=stable&arch=x86',
-    { signal: AbortSignal.timeout(8000), redirect: 'follow' },
-  );
-  const text = await res.text();
-
-  // (b) JSON response
-  try {
-    const json = JSON.parse(text);
-    if (json.name && /^\d+\.\d+\.\d+$/.test(json.name)) return json.name;
-    const urlField = json.url ?? json.download ?? '';
-    const mj = urlField.match(/\/(\d+\.\d+\.\d+)\/[^/]+\.exe/i);
-    if (mj) return mj[1];
-  } catch { /* not JSON */ }
-
-  // (a) redirect URL
-  const mr = res.url.match(/\/(\d+\.\d+\.\d+)\/[^/]+\.exe/i);
-  if (mr) return mr[1];
-
-  throw new Error(`version not found — body: ${text.slice(0, 120)}`);
-}
 
 /**
  * Fetch the latest build number + Electron/Chrome versions.
@@ -75,10 +50,9 @@ async function _fetchClientVersion() {
  * Safe to call multiple times — just updates the `live` object in-place.
  */
 export async function refreshBuildInfo() {
-  const [buildResult, electronResult, clientVerResult] = await Promise.allSettled([
+  const [buildResult, electronResult] = await Promise.allSettled([
     _fetchBuildNumber(),
     _fetchElectronInfo(),
-    _fetchClientVersion(),
   ]);
 
   const prev = { ...live };
@@ -96,19 +70,12 @@ export async function refreshBuildInfo() {
     console.warn(`⚠️  Electron/Chrome fetch failed — ${electronResult.reason?.message} — ใช้ fallback`);
   }
 
-  if (clientVerResult.status === 'fulfilled') {
-    live.clientVersion = clientVerResult.value;
-  } else {
-    console.warn(`⚠️  CLIENT_VERSION fetch failed — ${clientVerResult.reason?.message} — ใช้ fallback ${live.clientVersion}`);
-  }
-
   const buildChanged    = live.buildNumber    !== prev.buildNumber;
   const electronChanged = live.electronVersion !== prev.electronVersion;
-  const clientChanged   = live.clientVersion  !== prev.clientVersion;
 
   console.log(
     `🔄 Build info — ` +
-    `Client: ${live.clientVersion}${clientChanged ? ' ✨' : ''} | ` +
+    `Client: ${live.clientVersion} | ` +
     `Build: ${live.buildNumber}${buildChanged ? ' ✨' : ''} | ` +
     `Chrome: ${live.chromeVersion} | ` +
     `Electron: ${live.electronVersion}${electronChanged ? ' ✨' : ''}`,
