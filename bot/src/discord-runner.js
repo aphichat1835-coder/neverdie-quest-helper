@@ -290,14 +290,14 @@ export async function startRunner({ jobKey, ownerId, userToken, channelId, clien
 
   async function flush() {
     lastRenderAt = Date.now();
-    const content = `<@${ownerId}>\n\`\`\`\n${logLines.join('\n')}\n\`\`\``;
+    const content = '```\n' + logLines.join('\n') + '\n```';
     try {
       if (!liveMsg) {
         const ch = await client.channels.fetch(channelId);
         if (!ch?.isTextBased?.()) return;
-        liveMsg = await ch.send({ content, allowedMentions: { users: [ownerId] } });
+        liveMsg = await ch.send({ content });
       } else {
-        await liveMsg.edit({ content, allowedMentions: { users: [ownerId] } });
+        await liveMsg.edit({ content });
       }
     } catch {}
   }
