@@ -223,9 +223,8 @@ function normalizeQuest(raw) {
   const cfg        = raw.config ?? {};
   const userStatus = raw.user_status ?? {};
 
-  // New API: task_config.tasks is a map keyed by event name (WATCH_VIDEO, STREAM_ON_DESKTOP, etc.)
-  // Each entry has { event_name, target (seconds), ... }
-  const tasks      = cfg.task_config?.tasks ?? {};
+  // Support task_config (current) and task_config_v2 (alternate schema)
+  const tasks      = cfg.task_config?.tasks ?? cfg.task_config_v2?.tasks ?? {};
   const taskEntries = Object.entries(tasks);
   const [eventName, taskDef] = taskEntries[0] ?? ['WATCH_VIDEO', { target: 0 }];
   const secondsNeeded = Number(taskDef?.target ?? 0);
@@ -259,8 +258,14 @@ function normalizeQuest(raw) {
 
 function sleep(ms, signal) {
   return new Promise((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => { clearTimeout(t); reject(new Error('aborted')); }, { once: true });
+    let t;
+    const onAbort = () => { clearTimeout(t); reject(new Error('aborted')); };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    t = setTimeout(() => {
+      // Remove listener so it doesn't accumulate across many sleep() calls
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
   });
 }
 
@@ -340,8 +345,12 @@ export async function startRunner({ jobKey, ownerId, userToken, channelId, clien
         const unclaimed = allQuests.filter((q) => q.completed && !q.claimed);
         for (const quest of unclaimed) {
           if (signal.aborted) break;
-          await claimQuest(userToken, quest.id).catch(() => {});
-          addLog(`🎁 ${username}: CLAIMED ${quest.name}`);
+          try {
+            await claimQuest(userToken, quest.id);
+            addLog(`🎁 ${username}: CLAIMED ${quest.name}`);
+          } catch (e) {
+            addLog(`⚠️ ${username}: claim failed — ${quest.name} — ${e.message}`);
+          }
           await render();
         }
 
@@ -359,9 +368,11 @@ export async function startRunner({ jobKey, ownerId, userToken, channelId, clien
         for (const quest of active) {
           if (signal.aborted) break;
 
-          // Skip quest types that require real gameplay / console / achievement
-          if (SKIP_EVENTS.has(quest.eventName)) {
-            addLog(`⏭️ ${username}: ข้าม ${quest.name} (${quest.eventName})`);
+          // Skip quest types that can't be completed via API
+          // — known unskippable types AND any unknown/future event names
+          if (!VIDEO_EVENTS.has(quest.eventName) && !STREAM_EVENTS.has(quest.eventName)) {
+            const reason = SKIP_EVENTS.has(quest.eventName) ? 'ต้องเล่นจริง' : 'unknown type';
+            addLog(`⏭️ ${username}: ข้าม ${quest.name} (${quest.eventName} — ${reason})`);
             await render();
             continue;
           }
@@ -387,14 +398,23 @@ export async function startRunner({ jobKey, ownerId, userToken, channelId, clien
           };
 
           const runner = VIDEO_EVENTS.has(quest.eventName) ? runVideoQuest : runStreamQuest;
+          let runnerError = null;
           await runner(userToken, quest, signal, onProgress, speedMultiplier, heartbeatInterval).catch((e) => {
+            runnerError = e;
             if (e.message !== 'aborted') addLog(`⚠️ ${username}: ERROR ${e.message}`);
           });
 
-          if (!signal.aborted) {
+          if (!signal.aborted && !runnerError) {
+            // Re-fetch from Discord to confirm server-side completion before claiming
+            const freshQuests = await fetchQuests(userToken).catch(() => []);
+            const fresh = freshQuests.find((q) => q.id === quest.id);
+            if (!fresh?.completed) {
+              addLog(`⚠️ ${username}: ${quest.name} — Discord ยังไม่ยืนยันว่าเสร็จ`);
+              await render();
+              continue;
+            }
             addLog(`✅ ${username}: ${quest.name} DONE`);
             await render();
-            // Auto-claim reward immediately after completing
             try {
               await claimQuest(userToken, quest.id);
               addLog(`🎁 ${username}: CLAIMED ${quest.name}`);
